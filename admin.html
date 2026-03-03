@@ -1,0 +1,501 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GALGAME 管理后台</title>
+    <style>
+        /* 基础样式复用之前的风格 */
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', sans-serif;
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            min-height: 100vh;
+            color: #fff;
+        }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        header {
+            text-align: center; padding: 30px 0;
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 15px; margin-bottom: 30px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .header-title h1 { font-size: 2em; color: #3498db; }
+        .nav-links button, .nav-links a {
+            padding: 10px 20px; margin-left: 10px;
+            background: rgba(52, 152, 219, 0.2);
+            color: #3498db; border: 1px solid #3498db;
+            border-radius: 8px; cursor: pointer;
+            text-decoration: none; transition: all 0.3s;
+        }
+        .nav-links button:hover, .nav-links a:hover, .nav-links button.active {
+            background: #3498db; color: #fff;
+        }
+        .content-section {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px);
+            border-radius: 15px; padding: 30px; margin-bottom: 30px;
+        }
+        
+        /* 表单样式 */
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #3498db; font-weight: bold; }
+        input[type="text"], input[type="url"], select, textarea {
+            width: 100%; padding: 12px;
+            border: 1px solid rgba(52, 152, 219, 0.3);
+            border-radius: 8px; background: rgba(255, 255, 255, 0.1);
+            color: #fff; font-size: 14px;
+        }
+        /* 文件上传样式 */
+        .file-upload-wrapper {
+            position: relative;
+            width: 100%;
+            height: 150px;
+            border: 2px dashed rgba(52, 152, 219, 0.5);
+            border-radius: 8px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            cursor: pointer;
+            transition: all 0.3s;
+            background: rgba(0,0,0,0.2);
+            overflow: hidden;
+        }
+        .file-upload-wrapper:hover {
+            border-color: #3498db;
+            background: rgba(52, 152, 219, 0.1);
+        }
+        .file-upload-wrapper input[type="file"] {
+            position: absolute;
+            width: 100%; height: 100%;
+            opacity: 0;
+            cursor: pointer;
+        }
+        .upload-icon { font-size: 40px; color: #3498db; margin-bottom: 10px; }
+        .upload-text { color: #bdc3c7; }
+        .preview-image {
+            max-width: 100%;
+            max-height: 140px;
+            object-fit: contain;
+            display: none;
+            border-radius: 4px;
+        }
+        
+        .btn {
+            padding: 12px 25px; border: none; border-radius: 8px;
+            cursor: pointer; font-size: 14px; margin-right: 10px;
+            transition: all 0.3s;
+        }
+        .btn-primary { background: #3498db; color: #fff; }
+        .btn-success { background: #27ae60; color: #fff; }
+        .btn-danger { background: #e74c3c; color: #fff; }
+        .btn-warning { background: #f39c12; color: #fff; }
+        .btn:hover { transform: translateY(-2px); box-shadow: 0 5px 15px rgba(0,0,0,0.3); }
+
+        /* 表格样式 */
+        .games-table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        .games-table th, .games-table td {
+            padding: 12px; text-align: left;
+            border-bottom: 1px solid rgba(52, 152, 219, 0.3);
+        }
+        .games-table th { background: rgba(52, 152, 219, 0.2); color: #3498db; }
+        .game-thumb { width: 80px; height: 50px; object-fit: cover; border-radius: 4px; border: 1px solid #555; }
+        
+        /* 标签选择 */
+        .tags-container { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 10px; }
+        .tag-checkbox { display: none; }
+        .tag-label {
+            padding: 6px 15px; background: rgba(52, 152, 219, 0.2);
+            border: 1px solid #3498db; border-radius: 20px;
+            cursor: pointer; transition: all 0.3s;
+        }
+        .tag-checkbox:checked + .tag-label { background: #3498db; color: #fff; }
+
+        /* 模态框 */
+        .modal {
+            display: none; position: fixed; top: 0; left: 0;
+            width: 100%; height: 100%; background: rgba(0, 0, 0, 0.8);
+            z-index: 1000;
+        }
+        .modal-content {
+            background: #2c3e50; margin: 5% auto; padding: 30px;
+            border-radius: 15px; width: 90%; max-width: 600px;
+            max-height: 90vh; overflow-y: auto; position: relative;
+        }
+        .close { float: right; font-size: 28px; cursor: pointer; color: #bdc3c7; }
+        .close:hover { color: #fff; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div class="header-title">
+                <h1>🎮 GALGAME 管理后台</h1>
+            </div>
+            <div class="nav-links">
+                <a href="index.html">返回前台</a>
+                <button onclick="showSection('games')" id="btn-games" class="active">游戏列表</button>
+                <button onclick="showSection('add')" id="btn-add">添加游戏</button>
+                <button onclick="logout()" style="border-color: #e74c3c; color: #e74c3c;">退出登录</button>
+            </div>
+        </header>
+
+        <!-- 游戏列表 -->
+        <div id="gamesSection" class="content-section">
+            <h2>游戏列表管理</h2>
+            <table class="games-table">
+                <thead>
+                    <tr>
+                        <th>封面</th>
+                        <th>标题</th>
+                        <th>标签</th>
+                        <th>操作</th>
+                    </tr>
+                </thead>
+                <tbody id="gamesTableBody"></tbody>
+            </table>
+        </div>
+
+        <!-- 添加游戏 -->
+        <div id="addSection" class="content-section" style="display: none;">
+            <h2>添加新游戏</h2>
+            <form id="addGameForm">
+                <div class="form-group">
+                    <label>游戏标题 *</label>
+                    <input type="text" id="gameTitle" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>封面图片 (支持上传或URL) *</label>
+                    <div class="file-upload-wrapper" id="addImageWrapper">
+                        <span class="upload-icon">📁</span>
+                        <span class="upload-text">点击上传图片 或 拖拽到此处<br><small>(支持 JPG, PNG, GIF)</small></span>
+                        <input type="file" id="gameImageFile" accept="image/*">
+                        <img id="addImagePreview" class="preview-image">
+                    </div>
+                    <input type="url" id="gameImageUrl" placeholder="或者粘贴图片链接 (http://...)" style="margin-top: 10px;">
+                    <small style="color: #bdc3c7; display: block; margin-top: 5px;">提示：优先使用上传，若无上传则使用链接。</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>下载链接 *</label>
+                    <input type="url" id="gameDownload" required placeholder="https://...">
+                </div>
+                
+                <div class="form-group">
+                    <label>游戏标签 *</label>
+                    <div class="tags-container" id="addTagsContainer">
+                        <!-- JS生成标签 -->
+                    </div>
+                </div>
+                
+                <button type="submit" class="btn btn-success">确认添加</button>
+                <button type="reset" class="btn btn-warning" onclick="resetUpload('add')">重置</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- 编辑模态框 -->
+    <div id="editModal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="closeModal()">&times;</span>
+            <h2>编辑游戏</h2>
+            <form id="editGameForm">
+                <input type="hidden" id="editGameId">
+                <div class="form-group">
+                    <label>游戏标题 *</label>
+                    <input type="text" id="editGameTitle" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>封面图片 *</label>
+                    <div class="file-upload-wrapper" id="editImageWrapper">
+                        <span class="upload-icon">📁</span>
+                        <span class="upload-text">点击更换图片</span>
+                        <input type="file" id="editImageFile" accept="image/*">
+                        <img id="editImagePreview" class="preview-image">
+                    </div>
+                    <input type="url" id="editImageUrl" placeholder="或者粘贴新图片链接" style="margin-top: 10px;">
+                </div>
+                
+                <div class="form-group">
+                    <label>下载链接 *</label>
+                    <input type="url" id="editGameDownload" required>
+                </div>
+                
+                <div class="form-group">
+                    <label>游戏标签 *</label>
+                    <div class="tags-container" id="editTagsContainer"></div>
+                </div>
+                
+                <button type="submit" class="btn btn-primary">保存修改</button>
+                <button type="button" class="btn btn-warning" onclick="closeModal()">取消</button>
+            </form>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+    <script>
+        // --- 权限检查 ---
+        if (!checkLogin()) {
+            window.location.href = "login.html";
+        }
+
+        const availableTags = ["纯爱", "校园", "异世界", "治愈", "异能", "科幻", "悬疑"];
+        let currentAddImageBase64 = null;
+        let currentEditImageBase64 = null;
+
+        // --- 初始化 ---
+        function initAdmin() {
+            renderGamesTable();
+            generateTagCheckboxes('addTagsContainer', []);
+        }
+
+        // --- 渲染表格 ---
+        function renderGamesTable() {
+            const games = getGames();
+            const tbody = document.getElementById('gamesTableBody');
+            tbody.innerHTML = '';
+
+            if (games.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="4" style="text-align:center; padding: 30px;">暂无游戏数据，请添加。</td></tr>';
+                return;
+            }
+
+            games.forEach(game => {
+                const row = document.createElement('tr');
+                const tagsHtml = game.tags.map(tag => 
+                    `<span style="background: rgba(52, 152, 219, 0.2); color: #3498db; padding: 2px 8px; border-radius: 10px; font-size: 12px; margin-right: 5px;">${tag}</span>`
+                ).join('');
+
+                row.innerHTML = `
+                    <td><img src="${game.image}" alt="cover" class="game-thumb" onerror="this.src='https://via.placeholder.com/80x50?text=NoImg'"></td>
+                    <td>${game.title}</td>
+                    <td>${tagsHtml}</td>
+                    <td>
+                        <button class="btn btn-primary" onclick="openEditModal(${game.id})">编辑</button>
+                        <button class="btn btn-danger" onclick="handleDelete(${game.id})">删除</button>
+                    </td>
+                `;
+                tbody.appendChild(row);
+            });
+        }
+
+        // --- 标签生成器 ---
+        function generateTagCheckboxes(containerId, selectedTags) {
+            const container = document.getElementById(containerId);
+            container.innerHTML = '';
+            availableTags.forEach((tag, index) => {
+                const isChecked = selectedTags.includes(tag) ? 'checked' : '';
+                const uniqueId = `${containerId}-${index}`;
+                container.innerHTML += `
+                    <input type="checkbox" id="${uniqueId}" class="tag-checkbox" value="${tag}" ${isChecked}>
+                    <label for="${uniqueId}" class="tag-label">${tag}</label>
+                `;
+            });
+        }
+
+        // --- 图片上传处理 (核心功能) ---
+        function setupImageUpload(fileInputId, previewId, wrapperId, callback) {
+            const fileInput = document.getElementById(fileInputId);
+            const previewImg = document.getElementById(previewId);
+            const wrapper = document.getElementById(wrapperId);
+            const uploadText = wrapper.querySelector('.upload-text');
+            const uploadIcon = wrapper.querySelector('.upload-icon');
+
+            fileInput.addEventListener('change', function(e) {
+                const file = e.target.files[0];
+                if (!file) return;
+
+                // 限制大小 (2MB)
+                if (file.size > 2 * 1024 * 1024) {
+                    alert("图片大小不能超过 2MB，否则可能导致存储失败！");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64 = event.target.result;
+                    previewImg.src = base64;
+                    previewImg.style.display = 'block';
+                    uploadText.style.display = 'none';
+                    uploadIcon.style.display = 'none';
+                    wrapper.style.borderStyle = 'solid';
+                    wrapper.style.borderColor = '#27ae60';
+                    
+                    if (callback) callback(base64);
+                };
+                reader.readAsDataURL(file);
+            });
+        }
+
+        function resetUpload(type) {
+            if (type === 'add') {
+                currentAddImageBase64 = null;
+                document.getElementById('gameImageFile').value = '';
+                document.getElementById('gameImageUrl').value = '';
+                const preview = document.getElementById('addImagePreview');
+                preview.style.display = 'none';
+                preview.src = '';
+                const wrapper = document.getElementById('addImageWrapper');
+                wrapper.querySelector('.upload-text').style.display = 'block';
+                wrapper.querySelector('.upload-icon').style.display = 'block';
+                wrapper.style.borderStyle = 'dashed';
+                wrapper.style.borderColor = 'rgba(52, 152, 219, 0.5)';
+            } else if (type === 'edit') {
+                // 编辑重置逻辑类似，略
+            }
+        }
+
+        // 绑定上传事件
+        setupImageUpload('gameImageFile', 'addImagePreview', 'addImageWrapper', (base64) => {
+            currentAddImageBase64 = base64;
+            document.getElementById('gameImageUrl').value = ''; // 清空URL输入以示优先
+        });
+
+        setupImageUpload('editImageFile', 'editImagePreview', 'editImageWrapper', (base64) => {
+            currentEditImageBase64 = base64;
+            document.getElementById('editImageUrl').value = '';
+        });
+
+        // --- 添加游戏逻辑 ---
+        document.getElementById('addGameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const title = document.getElementById('gameTitle').value;
+            const urlInput = document.getElementById('gameImageUrl').value;
+            const downloadUrl = document.getElementById('gameDownload').value;
+            
+            // 确定图片源：优先上传的Base64，其次是URL
+            let finalImage = currentAddImageBase64 || urlInput;
+            
+            if (!finalImage) {
+                alert("请上传图片或提供图片链接！");
+                return;
+            }
+
+            const selectedTags = [];
+            document.querySelectorAll('#addTagsContainer .tag-checkbox:checked').forEach(cb => {
+                selectedTags.push(cb.value);
+            });
+
+            if (selectedTags.length === 0) {
+                alert("请至少选择一个标签！");
+                return;
+            }
+
+            addGame({
+                title,
+                image: finalImage,
+                tags: selectedTags,
+                downloadUrl
+            });
+
+            alert("添加成功！");
+            this.reset();
+            resetUpload('add');
+            showSection('games');
+            renderGamesTable();
+        });
+
+        // --- 编辑游戏逻辑 ---
+        function openEditModal(id) {
+            const game = getGames().find(g => g.id === id);
+            if (!game) return;
+
+            document.getElementById('editGameId').value = game.id;
+            document.getElementById('editGameTitle').value = game.title;
+            document.getElementById('editGameDownload').value = game.downloadUrl;
+            document.getElementById('editImageUrl').value = ''; // 清空临时URL
+            
+            // 设置当前图片预览
+            const preview = document.getElementById('editImagePreview');
+            preview.src = game.image;
+            preview.style.display = 'block';
+            const wrapper = document.getElementById('editImageWrapper');
+            wrapper.querySelector('.upload-text').style.display = 'none';
+            wrapper.querySelector('.upload-icon').style.display = 'none';
+            
+            currentEditImageBase64 = null; // 重置临时上传变量，除非用户重新选择
+
+            generateTagCheckboxes('editTagsContainer', game.tags);
+            document.getElementById('editModal').style.display = 'block';
+        }
+
+        document.getElementById('editGameForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            const id = parseInt(document.getElementById('editGameId').value);
+            const title = document.getElementById('editGameTitle').value;
+            const urlInput = document.getElementById('editImageUrl').value;
+            const downloadUrl = document.getElementById('editGameDownload').value;
+            
+            // 逻辑：如果用户上传了新图，用新图；如果输入了新URL，用URL；否则保留原图（需要在外部获取原图或逻辑调整）
+            // 简单处理：如果 currentEditImageBase64 有值，用它。如果有 urlInput，用 urlInput。
+            // 注意：这里有个小问题，如果用户既不上传也不改URL，我们需要保留旧图。
+            // 由于 modal 打开时我们没存旧图的全局变量，这里假设：如果没有新上传且没有新URL，则保持原样（不传image字段给update函数，或者在update函数里处理）
+            
+            let imageUpdated = null;
+            if (currentEditImageBase64) {
+                imageUpdated = currentEditImageBase64;
+            } else if (urlInput) {
+                imageUpdated = urlInput;
+            }
+            // 如果两者都没有，imageUpdated 为 null，updateGame 函数需要处理不覆盖图片
+
+            const selectedTags = [];
+            document.querySelectorAll('#editTagsContainer .tag-checkbox:checked').forEach(cb => {
+                selectedTags.push(cb.value);
+            });
+
+            const updateData = {
+                title,
+                downloadUrl,
+                tags: selectedTags
+            };
+            
+            if (imageUpdated) {
+                updateData.image = imageUpdated;
+            }
+
+            if (updateGame(id, updateData)) {
+                alert("更新成功！");
+                closeModal();
+                renderGamesTable();
+            } else {
+                alert("更新失败");
+            }
+        });
+
+        function handleDelete(id) {
+            if(confirm("确定要删除这个游戏吗？此操作不可恢复。")) {
+                deleteGame(id);
+                renderGamesTable();
+            }
+        }
+
+        function closeModal() {
+            document.getElementById('editModal').style.display = 'none';
+        }
+
+        function showSection(sectionName) {
+            document.getElementById('gamesSection').style.display = sectionName === 'games' ? 'block' : 'none';
+            document.getElementById('addSection').style.display = sectionName === 'add' ? 'block' : 'none';
+            
+            document.querySelectorAll('.nav-links button').forEach(btn => btn.classList.remove('active'));
+            document.getElementById(`btn-${sectionName}`).classList.add('active');
+        }
+
+        // 点击模态框外部关闭
+        window.onclick = function(event) {
+            if (event.target == document.getElementById('editModal')) {
+                closeModal();
+            }
+        }
+
+        // 启动
+        initAdmin();
+    </script>
+</body>
+</html>
